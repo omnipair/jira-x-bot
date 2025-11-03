@@ -12,17 +12,17 @@ app.use(express.json({ type: ["application/json", "application/*+json"] }));
 app.get("/health", (_req, res) => res.json({ ok: true, service: "jira-x-bot" }));
 
 // Debug endpoint to view recent webhook events from database
-app.get("/webhooks/recent", (_req, res) => {
+app.get("/webhooks/recent", async (_req, res) => {
   try {
     const limit = parseInt(_req.query.limit as string) || 20;
-    const events = dbOps.getRecentEvents(limit);
+    const events = await dbOps.getRecentEvents(limit);
     res.json({ ok: true, count: events.length, events });
   } catch (e: any) {
     res.status(500).json({ ok: false, error: e?.message || e });
   }
 });
 
-function logWebhook(payload: any) {
+async function logWebhook(payload: any) {
   try {
     // Only extract essential data needed for posts
     const { webhookEvent, issue, changelog } = payload || {};
@@ -40,7 +40,7 @@ function logWebhook(payload: any) {
     };
     
     // Save to database
-    dbOps.recordWebhookEvent(essentialData);
+    await dbOps.recordWebhookEvent(essentialData);
     
     // Also keep a simple JSON log for quick inspection (optional)
     mkdirSync("./data", { recursive: true });
@@ -63,7 +63,7 @@ app.post("/webhooks/jira", async (req, res) => {
 
   console.log("---- JIRA WEBHOOK ----");
   console.log("UA:", req.headers["user-agent"], "CT:", req.headers["content-type"]);
-  logWebhook(req.body);
+  await logWebhook(req.body);
 
   try {
     const { webhookEvent, issue, changelog } = (req as any).body || {};
@@ -101,12 +101,12 @@ app.post("/webhooks/jira", async (req, res) => {
     const summary = issue.fields?.summary || "";
 
     const dedupId = `${key}:${from}->${to}`;
-    if (alreadyPosted(dedupId)) return console.log("Already posted", dedupId);
+    if (await alreadyPosted(dedupId)) return console.log("Already posted", dedupId);
 
     const text = `${key} moved ${from} → ${to} — ${summary}`.slice(0, 280);
     const r = await tweet(text);
     if ((r as any).ok) {
-      markPosted(dedupId, key, from, to);
+      await markPosted(dedupId, key, from, to);
       
       // Send Discord embed (separate from tweet, same info)
       const embed = createTicketEmbed(key, summary, from, to);

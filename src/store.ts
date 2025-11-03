@@ -1,11 +1,11 @@
 import { dbOps } from "./db";
 
-export function alreadyPosted(dedupId: string): boolean {
+export async function alreadyPosted(dedupId: string): Promise<boolean> {
   if (!dedupId) return false;
-  return dbOps.isPosted(dedupId);
+  return await dbOps.isPosted(dedupId);
 }
 
-export function markPosted(dedupId: string, issueKey: string, fromStatus: string, toStatus: string): void {
+export async function markPosted(dedupId: string, issueKey: string, fromStatus: string, toStatus: string): Promise<void> {
   if (!dedupId) return;
-  dbOps.markPosted({ dedupId, issueKey, fromStatus, toStatus });
+  await dbOps.markPosted({ dedupId, issueKey, fromStatus, toStatus });
 }
