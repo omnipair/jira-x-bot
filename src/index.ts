@@ -2,6 +2,7 @@ import express from "express";
 import { cfg } from "./config";
 import { alreadyPosted, markPosted } from "./store";
 import { tweet } from "./twitter";
+import { sendDiscordEmbed, createTicketEmbed } from "./discord";
 import { mkdirSync, appendFileSync } from "fs";
 
 const app = express();
@@ -44,10 +45,25 @@ app.post("/webhooks/jira", async (req, res) => {
     const statusChange = Array.isArray(changelog?.items)
       ? changelog.items.find((it: any) => it.field === "status")
       : null;
-    if (!isUpdate || !statusChange) return console.log("No status change; ignoring");
+    if (!isUpdate) return console.log("Not an issue update event; ignoring");
+    if (!statusChange) {
+      const changedFields = changelog?.items?.map((it: any) => it.field).join(", ") || "none";
+      return console.log(`No status change; ignoring (changed fields: ${changedFields})`);
+    }
 
     const from = statusChange.fromString || "Unknown";
     const to = statusChange.toString || issue?.fields?.status?.name || "Unknown";
+    
+    // Track transitions FROM "In Progress" OR transitions TO "Done"
+    const fromLower = from.toLowerCase().trim();
+    const toLower = to.toLowerCase().trim();
+    const isFromInProgress = fromLower === "in progress";
+    const isToDone = toLower === "done";
+    
+    if (!isFromInProgress && !isToDone) {
+      return console.log(`Ignoring transition: ${from} → ${to}`);
+    }
+
     const key = issue.key as string;
     const summary = issue.fields?.summary || "";
 
@@ -56,7 +72,13 @@ app.post("/webhooks/jira", async (req, res) => {
 
     const text = `${key} moved ${from} → ${to} — ${summary}`.slice(0, 280);
     const r = await tweet(text);
-    if ((r as any).ok) markPosted(dedupId);
+    if ((r as any).ok) {
+      markPosted(dedupId);
+      
+      // Send Discord embed (separate from tweet, same info)
+      const embed = createTicketEmbed(key, summary, from, to);
+      await sendDiscordEmbed(embed);
+    }
   } catch (e: any) {
     console.error("Handler error:", e?.message || e);
   }

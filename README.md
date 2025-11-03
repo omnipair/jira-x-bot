@@ -2,9 +2,10 @@
 
 ## Setup
 1. `cp .env.example .env` and fill `X_ACCESS_TOKEN`.
-2. `yarn install`
-3. Local run: `yarn dev`
-4. Expose HTTPS (pick one):
+2. (Optional) Add `DISCORD_WEBHOOK_URL` for Discord notifications
+3. `yarn install`
+4. Local run: `yarn dev`
+5. Expose HTTPS (pick one):
    - `cloudflared tunnel --url http://localhost:8080`
    - `ngrok http 8080`
 
@@ -26,3 +27,31 @@ curl -sv -X POST https://YOUR-TUNNEL/webhooks/jira \
 ```
 
 You should see `Tweet ok:` in logs and a post on X.
+
+## Discord Integration
+
+When a ticket status changes and is tweeted, the bot will also send a rich embed to Discord (if `DISCORD_WEBHOOK_URL` is configured).
+
+**No bot token needed!** Discord webhooks work differently than Discord bots:
+- Webhooks only need a webhook URL (no bot token, no channel ID)
+- You can create webhooks directly in Discord server settings
+- The webhook URL already contains both the channel and authentication info
+
+The Discord embed includes:
+- Ticket key and summary
+- Status transition (from → to)
+- Color coding (green for "Done", yellow for "In Progress")
+
+To get a Discord webhook URL:
+1. Go to your Discord server settings
+2. Navigate to Integrations → Webhooks
+3. Create a new webhook or use an existing one
+4. Copy the webhook URL (looks like `https://discord.com/api/webhooks/...`) and add it to `.env` as `DISCORD_WEBHOOK_URL`
+
+## Dry Run Options
+
+You can test without actually posting by setting:
+- `DRY_RUN_TWITTER=true` - Will log tweets instead of posting them
+- `DRY_RUN_DISCORD=true` - Will log Discord embeds instead of sending them
+
+You can enable either or both independently.
