@@ -1,7 +1,11 @@
 # Jira → X Bot (TypeScript, CommonJS)
 
 ## Setup
-1. `cp .env.example .env` and fill `X_ACCESS_TOKEN`.
+1. `cp .env.example .env` and fill OAuth 1.0a credentials:
+   - `X_API_KEY` - Your Twitter API Key (Consumer Key)
+   - `X_API_SECRET` - Your Twitter API Secret (Consumer Secret)
+   - `X_ACCESS_TOKEN` - Your Access Token
+   - `X_ACCESS_TOKEN_SECRET` - Your Access Token Secret
 2. (Optional) Add `DISCORD_WEBHOOK_URL` for Discord notifications
 3. `yarn install`
 4. Local run: `yarn dev`

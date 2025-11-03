@@ -104,13 +104,24 @@ app.post("/webhooks/jira", async (req, res) => {
     if (await alreadyPosted(dedupId)) return console.log("Already posted", dedupId);
 
     const text = `${key} moved ${from} → ${to} — ${summary}`.slice(0, 280);
-    const r = await tweet(text);
-    if ((r as any).ok) {
+    const tweetResult = await tweet(text);
+    
+    // Send Discord embed regardless of tweet success/failure
+    const embed = createTicketEmbed(key, summary, from, to);
+    const discordResult = await sendDiscordEmbed(embed);
+    
+    // Only mark as posted if tweet succeeded
+    if (tweetResult.ok) {
       await markPosted(dedupId, key, from, to);
-      
-      // Send Discord embed (separate from tweet, same info)
-      const embed = createTicketEmbed(key, summary, from, to);
-      await sendDiscordEmbed(embed);
+      console.log(`Successfully posted ${dedupId}`);
+    } else {
+      console.error(`Tweet failed for ${dedupId}:`, tweetResult.error);
+      // Log Discord status too
+      if (!discordResult.ok) {
+        console.error(`Discord also failed for ${dedupId}:`, discordResult.error);
+      } else {
+        console.log(`Discord notification sent successfully for ${dedupId} (tweet failed)`);
+      }
     }
   } catch (e: any) {
     console.error("Handler error:", e?.message || e);

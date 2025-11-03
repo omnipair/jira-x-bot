@@ -1473,6 +1473,7 @@ __metadata:
     "@types/sqlite3": "npm:^3.1.11"
     dotenv: "npm:^16.4.5"
     express: "npm:^4.21.1"
+    oauth-1.0a: "npm:^2.2.6"
     sqlite3: "npm:^5.1.7"
     tsx: "npm:^4.19.1"
     typescript: "npm:^5.6.3"
@@ -1887,6 +1888,13 @@ __metadata:
     gauge: "npm:^4.0.3"
     set-blocking: "npm:^2.0.0"
   checksum: 10c0/0cacedfbc2f6139c746d9cd4a85f62718435ad0ca4a2d6459cd331dd33ae58206e91a0742c1558634efcde3f33f8e8e7fd3adf1bfe7978310cf00bd55cccf890
+  languageName: node
+  linkType: hard
+
+"oauth-1.0a@npm:^2.2.6":
+  version: 2.2.6
+  resolution: "oauth-1.0a@npm:2.2.6"
+  checksum: 10c0/c540db3717cfe7e73509a29fc9163469af0cf1d7133b49989f0a47e23944efe8ca4ad375ff44bb118b26417f612b83b824e7c662ccd210eeb97169d4a846cf0b
   languageName: node
   linkType: hard
 
