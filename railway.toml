@@ -1,0 +1,3 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = "yarn install --check-files && yarn build"
