@@ -3,6 +3,7 @@ import { cfg } from "./config";
 import { alreadyPosted, markPosted } from "./store";
 import { tweet } from "./twitter";
 import { sendDiscordEmbed, createTicketEmbed } from "./discord";
+import { dbOps } from "./db";
 import { mkdirSync, appendFileSync } from "fs";
 
 const app = express();
@@ -10,14 +11,46 @@ app.use(express.json({ type: ["application/json", "application/*+json"] }));
 
 app.get("/health", (_req, res) => res.json({ ok: true, service: "jira-x-bot" }));
 
-function logWebhook(payload: any, headers: any) {
+// Debug endpoint to view recent webhook events from database
+app.get("/webhooks/recent", (_req, res) => {
   try {
+    const limit = parseInt(_req.query.limit as string) || 20;
+    const events = dbOps.getRecentEvents(limit);
+    res.json({ ok: true, count: events.length, events });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || e });
+  }
+});
+
+function logWebhook(payload: any) {
+  try {
+    // Only extract essential data needed for posts
+    const { webhookEvent, issue, changelog } = payload || {};
+    const statusChange = Array.isArray(changelog?.items)
+      ? changelog.items.find((it: any) => it.field === "status")
+      : null;
+    
+    const essentialData = {
+      timestamp: new Date().toISOString(),
+      webhookEvent,
+      issueKey: issue?.key || null,
+      summary: issue?.fields?.summary || null,
+      fromStatus: statusChange?.fromString || null,
+      toStatus: statusChange?.toString || null,
+    };
+    
+    // Save to database
+    dbOps.recordWebhookEvent(essentialData);
+    
+    // Also keep a simple JSON log for quick inspection (optional)
     mkdirSync("./data", { recursive: true });
     appendFileSync(
       "./data/last-webhook.json",
-      JSON.stringify({ at: new Date().toISOString(), headers, payload }, null, 2) + "\n\n"
+      JSON.stringify(essentialData, null, 2) + "\n\n"
     );
-  } catch {}
+  } catch (e: any) {
+    console.error("Error logging webhook:", e?.message || e);
+  }
 }
 
 app.post("/webhooks/jira", async (req, res) => {
@@ -30,7 +63,7 @@ app.post("/webhooks/jira", async (req, res) => {
 
   console.log("---- JIRA WEBHOOK ----");
   console.log("UA:", req.headers["user-agent"], "CT:", req.headers["content-type"]);
-  logWebhook(req.body, req.headers);
+  logWebhook(req.body);
 
   try {
     const { webhookEvent, issue, changelog } = (req as any).body || {};
@@ -73,7 +106,7 @@ app.post("/webhooks/jira", async (req, res) => {
     const text = `${key} moved ${from} → ${to} — ${summary}`.slice(0, 280);
     const r = await tweet(text);
     if ((r as any).ok) {
-      markPosted(dedupId);
+      markPosted(dedupId, key, from, to);
       
       // Send Discord embed (separate from tweet, same info)
       const embed = createTicketEmbed(key, summary, from, to);
