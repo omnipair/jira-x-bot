@@ -113,14 +113,14 @@ export function createTicketEmbed(
   from: string,
   to: string
 ): DiscordEmbed {
-  // Choose color based on status transition
-  let color = 0x5865f2; // Default Discord blurple
-  const toLower = to.toLowerCase().trim();
-  if (toLower === "done") {
-    color = 0x57f287; // Green for done
-  } else if (toLower === "in progress") {
-    color = 0xfee75c; // Yellow for in progress
-  }
+  // Color is 01e895
+  let color = 0x01e895;
+  //const toLower = to.toLowerCase().trim();
+  //if (toLower === "done") {
+  //  color = 0x57f287; // Green for done
+  //} else if (toLower === "in progress") {
+  //  color = 0xfee75c; // Yellow for in progress
+  //}
 
   const embed: DiscordEmbed = {
     title: `Ticket ${key}`,
