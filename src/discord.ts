@@ -124,13 +124,17 @@ export function createTicketEmbed(
 
   const embed: DiscordEmbed = {
     title: `Ticket ${key}`,
-    description: summary || "No summary available",
     color,
     fields: [
       {
-        name: "Status Change",
+        name: "🔁 Status Change",
         value: `${from} → ${to}`,
-        inline: true
+        inline: false
+      },
+      {
+        name: "📄 Description",
+        value: `${summary || "No description available"}`,
+        inline: false
       }
     ],
     timestamp: new Date().toISOString(),

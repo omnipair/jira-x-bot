@@ -87,13 +87,14 @@ app.post("/webhooks/jira", async (req, res) => {
     const from = statusChange.fromString || "Unknown";
     const to = statusChange.toString || issue?.fields?.status?.name || "Unknown";
     
-    // Track transitions FROM "In Progress" OR transitions TO "Done"
+    // Track transitions FROM "In Progress" OR transitions TO "Done" OR transitions TO "In Progress"
     const fromLower = from.toLowerCase().trim();
     const toLower = to.toLowerCase().trim();
     const isFromInProgress = fromLower === "in progress";
     const isToDone = toLower === "done";
+    const isToInProgress = toLower === "in progress";
     
-    if (!isFromInProgress && !isToDone) {
+    if (!isFromInProgress && !isToDone && !isToInProgress) {
       return console.log(`Ignoring transition: ${from} → ${to}`);
     }
 
@@ -103,7 +104,7 @@ app.post("/webhooks/jira", async (req, res) => {
     const dedupId = `${key}:${from}->${to}`;
     if (await alreadyPosted(dedupId)) return console.log("Already posted", dedupId);
 
-    const text = `${key} moved ${from} → ${to} — ${summary}`.slice(0, 280);
+    const text = `🔁 ${key} moved ${from} → ${to}\n📄 Description: ${summary}\n\n#Omnipair #Futarchy`.slice(0, 280);
     const tweetResult = await tweet(text);
     
     // Send Discord embed regardless of tweet success/failure
