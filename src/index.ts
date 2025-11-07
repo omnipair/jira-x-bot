@@ -94,14 +94,15 @@ app.post("/webhooks/jira", async (req, res) => {
     const from = statusChange.fromString || "Unknown";
     const to = statusChange.toString || issue?.fields?.status?.name || "Unknown";
     
-    // Track transitions FROM "In Progress" OR transitions TO "Done" OR transitions TO "In Progress"
+    // Track transitions FROM "In Progress" OR transitions TO "Done" OR transitions TO "In Progress" OR transitions TO "Complete"
     const fromLower = from.toLowerCase().trim();
     const toLower = to.toLowerCase().trim();
     const isFromInProgress = fromLower === "in progress";
     const isToDone = toLower === "done";
     const isToInProgress = toLower === "in progress";
+    const isToComplete = toLower === "complete";
     
-    if (!isFromInProgress && !isToDone && !isToInProgress) {
+    if (!isFromInProgress && !isToDone && !isToInProgress && !isToComplete) {
       return console.log(`Ignoring transition: ${from} → ${to}`);
     }
 
