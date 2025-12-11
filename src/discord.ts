@@ -140,7 +140,7 @@ export function createTicketEmbed(
     timestamp: new Date().toISOString(),
     footer: {
       text: "Omnipair",
-      icon_url: "https://pbs.twimg.com/profile_images/1976012477964898304/IRWypZmF_400x400.png"
+      icon_url: "https://i.imgur.com/Ut4OcT1.png"
     }
   };
 
