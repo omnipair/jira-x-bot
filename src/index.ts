@@ -5,6 +5,7 @@ import { tweet } from "./twitter";
 import { sendDiscordEmbed, createTicketEmbed } from "./discord";
 import { dbOps } from "./db";
 import { mkdirSync, appendFileSync } from "fs";
+import crypto from "crypto";
 
 const app = express();
 app.use(express.json({ type: ["application/json", "application/*+json"] }));
@@ -55,25 +56,33 @@ async function logWebhook(payload: any) {
 
 app.post("/webhooks/jira", async (req, res) => {
   if (cfg.webhookSecret) {
-    // Express normalizes headers to lowercase, so "x-webhook-secret" works for any case
-    const h = req.header("x-webhook-secret");
-    const receivedSecret = h ? String(h).trim() : null;
-    
-    if (!receivedSecret) {
-      console.error("[SECURITY] Webhook secret required but not provided in request");
-      console.error("  Available headers:", Object.keys(req.headers).filter(k => k.toLowerCase().includes("secret")).join(", ") || "none");
-      return res.status(401).json({ ok: false, reason: "webhook secret required" });
+    const sig = req.header("x-hub-signature"); // Jira webhook signature
+    if (!sig) {
+      console.error("[SECURITY] Webhook signature required but not provided in request");
+      console.error("  Available headers:", Object.keys(req.headers).join(", ") || "none");
+      return res.status(401).json({ ok: false, reason: "signature required" });
     }
-    
-    if (receivedSecret !== cfg.webhookSecret) {
-      console.error("[SECURITY] Webhook secret mismatch");
-      console.error(`  Expected length: ${cfg.webhookSecret.length}, Received length: ${receivedSecret.length}`);
-      console.error(`  First char expected: "${cfg.webhookSecret[0]}", received: "${receivedSecret[0]}"`);
-      console.error(`  Last char expected: "${cfg.webhookSecret[cfg.webhookSecret.length - 1]}", received: "${receivedSecret[receivedSecret.length - 1]}"`);
-      return res.status(401).json({ ok: false, reason: "secret mismatch" });
+
+    const raw = req.rawBody as Buffer | undefined;
+    if (!raw) {
+      console.error("[SECURITY] Missing rawBody; cannot verify signature");
+      return res.status(500).json({ ok: false, reason: "server misconfigured (rawBody missing)" });
     }
-    
-    console.log("[SECURITY] Webhook secret validated successfully");
+
+    const expected = crypto
+      .createHmac("sha256", cfg.webhookSecret)
+      .update(raw)
+      .digest("hex");
+
+    // Some systems prefix signatures; Jira’s is commonly just hex.
+    const received = String(sig).trim();
+
+    if (received !== expected) {
+      console.error("[SECURITY] Webhook signature mismatch");
+      return res.status(401).json({ ok: false, reason: "signature mismatch" });
+    }
+
+    console.log("[SECURITY] Webhook signature validated successfully");
   }
 
   res.status(200).json({ ok: true });
