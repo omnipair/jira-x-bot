@@ -7,9 +7,13 @@
    - `X_ACCESS_TOKEN` - Your Access Token
    - `X_ACCESS_TOKEN_SECRET` - Your Access Token Secret
 2. (Optional) Add `DISCORD_WEBHOOK_URL` for Discord notifications
-3. `yarn install`
-4. Local run: `yarn dev`
-5. Expose HTTPS (pick one):
+3. (Optional) Configure branding:
+   - `BRAND_NAME` - Footer text in Discord embeds
+   - `BRAND_ICON_URL` - Footer icon URL in Discord embeds
+   - `TWEET_HASHTAGS` - Hashtags to append to tweets (must be quoted in .env, e.g., `"#MyBrand #MyProject"`)
+4. `yarn install`
+5. Local run: `yarn dev`
+6. Expose HTTPS (pick one):
    - `cloudflared tunnel --url http://localhost:8080`
    - `ngrok http 8080`
 
@@ -32,9 +36,20 @@ curl -sv -X POST https://YOUR-TUNNEL/webhooks/jira \
 
 You should see `Tweet ok:` in logs and a post on X.
 
+## Feature Toggles
+
+You can enable or disable X and Discord posting independently:
+
+- `ENABLE_X=true` (default) - Enable X/Twitter posting
+- `ENABLE_X=false` - Disable X/Twitter posting completely
+- `ENABLE_DISCORD=true` (default) - Enable Discord notifications
+- `ENABLE_DISCORD=false` - Disable Discord notifications completely
+
+If both are disabled, webhooks will still be processed and logged, but nothing will be posted.
+
 ## Discord Integration
 
-When a ticket status changes and is tweeted, the bot will also send a rich embed to Discord (if `DISCORD_WEBHOOK_URL` is configured).
+When a ticket status changes, the bot will send a rich embed to Discord (if `DISCORD_WEBHOOK_URL` is configured and `ENABLE_DISCORD` is not set to `false`).
 
 **No bot token needed!** Discord webhooks work differently than Discord bots:
 - Webhooks only need a webhook URL (no bot token, no channel ID)
@@ -44,7 +59,7 @@ When a ticket status changes and is tweeted, the bot will also send a rich embed
 The Discord embed includes:
 - Ticket key and summary
 - Status transition (from → to)
-- Color coding (green for "Done", yellow for "In Progress")
+- Custom branding (if `BRAND_NAME` and optionally `BRAND_ICON_URL` are configured)
 
 To get a Discord webhook URL:
 1. Go to your Discord server settings
@@ -57,5 +72,22 @@ To get a Discord webhook URL:
 You can test without actually posting by setting:
 - `DRY_RUN_TWITTER=true` - Will log tweets instead of posting them
 - `DRY_RUN_DISCORD=true` - Will log Discord embeds instead of sending them
+- `DRY_RUN=true` - Will enable dry run for both services
 
-You can enable either or both independently.
+You can enable either or both independently. Note: Dry run is different from disabling a service. With dry run, the service still processes the request but doesn't actually post. With `ENABLE_X=false` or `ENABLE_DISCORD=false`, the service is completely skipped.
+
+## Branding Configuration
+
+Customize the bot's appearance:
+
+- `BRAND_NAME` - Text displayed in Discord embed footer (optional)
+- `BRAND_ICON_URL` - Icon URL displayed in Discord embed footer (optional, only used if `BRAND_NAME` is set)
+- `TWEET_HASHTAGS` - Hashtags appended to tweets (optional)
+
+**Important:** When setting `TWEET_HASHTAGS`, you must quote the value in your `.env` file because `#` is used for comments in `.env` files:
+
+```bash
+TWEET_HASHTAGS="#MyBrand #MyProject"
+```
+
+If `BRAND_NAME` is not set, Discord embeds will not include a footer.

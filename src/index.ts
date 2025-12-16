@@ -55,8 +55,25 @@ async function logWebhook(payload: any) {
 
 app.post("/webhooks/jira", async (req, res) => {
   if (cfg.webhookSecret) {
-    const h = req.header("X-Webhook-Secret") || req.header("x-webhook-secret");
-    if (h !== cfg.webhookSecret) return res.status(401).json({ ok: false, reason: "secret mismatch" });
+    // Express normalizes headers to lowercase, so "x-webhook-secret" works for any case
+    const h = req.header("x-webhook-secret");
+    const receivedSecret = h ? String(h).trim() : null;
+    
+    if (!receivedSecret) {
+      console.error("[SECURITY] Webhook secret required but not provided in request");
+      console.error("  Available headers:", Object.keys(req.headers).filter(k => k.toLowerCase().includes("secret")).join(", ") || "none");
+      return res.status(401).json({ ok: false, reason: "webhook secret required" });
+    }
+    
+    if (receivedSecret !== cfg.webhookSecret) {
+      console.error("[SECURITY] Webhook secret mismatch");
+      console.error(`  Expected length: ${cfg.webhookSecret.length}, Received length: ${receivedSecret.length}`);
+      console.error(`  First char expected: "${cfg.webhookSecret[0]}", received: "${receivedSecret[0]}"`);
+      console.error(`  Last char expected: "${cfg.webhookSecret[cfg.webhookSecret.length - 1]}", received: "${receivedSecret[receivedSecret.length - 1]}"`);
+      return res.status(401).json({ ok: false, reason: "secret mismatch" });
+    }
+    
+    console.log("[SECURITY] Webhook secret validated successfully");
   }
 
   res.status(200).json({ ok: true });
@@ -112,24 +129,38 @@ app.post("/webhooks/jira", async (req, res) => {
     const dedupId = `${key}:${from}->${to}`;
     if (await alreadyPosted(dedupId)) return console.log("Already posted", dedupId);
 
-    const text = `🔁 ${key}: ${from} → ${to}\n📄 Description: ${summary}\n\n#Omnipair #Futarchy`.slice(0, 280);
-    const tweetResult = await tweet(text);
-    
-    // Send Discord embed regardless of tweet success/failure
-    const embed = createTicketEmbed(key, summary, from, to);
-    const discordResult = await sendDiscordEmbed(embed);
-    
-    // Only mark as posted if tweet succeeded
-    if (tweetResult.ok) {
-      await markPosted(dedupId, key, from, to);
-      console.log(`Successfully posted ${dedupId}`);
+    let tweetResult = { ok: false, error: "X disabled" } as const;
+    let discordResult = { ok: false, error: "Discord disabled" } as const;
+
+    // Post to X if enabled
+    if (cfg.enableX) {
+      const hashtags = cfg.tweetHashtags ? `\n\n${cfg.tweetHashtags}` : "";
+      const text = `🔁 ${key}: ${from} → ${to}\n📄 Description: ${summary}${hashtags}`.slice(0, 280);
+      tweetResult = await tweet(text);
     } else {
-      console.error(`Tweet failed for ${dedupId}:`, tweetResult.error);
-      // Log Discord status too
-      if (!discordResult.ok) {
-        console.error(`Discord also failed for ${dedupId}:`, discordResult.error);
-      } else {
-        console.log(`Discord notification sent successfully for ${dedupId} (tweet failed)`);
+      console.log(`[X] X posting is disabled; skipping tweet for ${dedupId}`);
+    }
+    
+    // Send Discord embed if enabled
+    if (cfg.enableDiscord) {
+      const embed = createTicketEmbed(key, summary, from, to);
+      discordResult = await sendDiscordEmbed(embed);
+    } else {
+      console.log(`[DISCORD] Discord posting is disabled; skipping notification for ${dedupId}`);
+    }
+    
+    // Mark as posted if at least one enabled service succeeded
+    // If both are disabled, still mark as posted to avoid duplicate processing
+    if (tweetResult.ok || discordResult.ok || (!cfg.enableX && !cfg.enableDiscord)) {
+      await markPosted(dedupId, key, from, to);
+      console.log(`Successfully processed ${dedupId}`);
+    } else {
+      console.error(`All enabled services failed for ${dedupId}`);
+      if (!tweetResult.ok && cfg.enableX) {
+        console.error(`  X error:`, tweetResult.error);
+      }
+      if (!discordResult.ok && cfg.enableDiscord) {
+        console.error(`  Discord error:`, discordResult.error);
       }
     }
   } catch (e: any) {
@@ -139,6 +170,4 @@ app.post("/webhooks/jira", async (req, res) => {
 
 app.listen(cfg.port, () => {
   console.log(`Jira webhook server listening on :${cfg.port}`);
-  console.log(`Health: http://localhost:${cfg.port}/health`);
-  console.log(`Webhook: POST http://localhost:${cfg.port}/webhooks/jira`);
 });

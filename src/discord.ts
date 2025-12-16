@@ -47,26 +47,6 @@ interface DiscordEmbed {
   }>;
 }
 
-// --- ADD: quips + picker (no other refactors) ---
-const quips = [
-  "Keep that code cleaner than mainnet.",
-  "Another block added to the chain of progress.",
-  "Inching closer to deployment… or disaster.",
-  "Commit it like you mean it.",
-  "You can’t refactor life, but this’ll do.",
-  "Progress confirmed. Jira’s satisfied (for now).",
-  "Somewhere, a PM just smiled.",
-  "This ticket’s moving faster than gas prices.",
-  "In motion like a Solana transaction. ⚡",
-  "Nice — fewer tickets, fewer excuses.",
-  "This one’s officially not your problem anymore.",
-  "Another soul freed from the backlog abyss.",
-  "Jira approves. The coffee gods bless your PR.",
-  "Workflow: updated. Sanity: questionable.",
-  "One small step for dev, one giant leap for QA."
-];
-const pickRandomQuip = () => quips[Math.floor(Math.random() * quips.length)];
-// --- END ADD ---
 
 export async function sendDiscordEmbed(embed: DiscordEmbed) {
   if (cfg.dryRunDiscord) {
@@ -138,15 +118,15 @@ export function createTicketEmbed(
       }
     ],
     timestamp: new Date().toISOString(),
-    footer: {
-      text: "Omnipair",
-      icon_url: "https://i.imgur.com/Ut4OcT1.png"
-    }
   };
 
-  // --- ADD: append a quip field (1 line doing the work) ---
-  // embed.fields?.push({ name: "Note", value: pickRandomQuip() });
-  // --- END ADD ---
+  // Add footer only if branding is configured
+  if (cfg.brandName) {
+    embed.footer = {
+      text: cfg.brandName,
+      ...(cfg.brandIconUrl && { icon_url: cfg.brandIconUrl })
+    };
+  }
 
   return embed;
 }
