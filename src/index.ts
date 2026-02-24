@@ -139,7 +139,8 @@ app.post("/webhooks/jira", async (req: any, res) => {
     // Filter out tickets with Security or Blocked labels
     const labels = issue?.fields?.labels || [];
     const labelNames = labels.map((l: string) => l.toLowerCase().trim());
-    if (labelNames.includes("security") || labelNames.includes("blocked")) {
+    const hasExcluded = cfg.excludedLabels.some((x) => labelNames.includes(x));
+    if (hasExcluded) {
       return console.log(`Ignoring ticket ${issue.key} with excluded label(s): ${labels.join(", ")}`);
     }
 
@@ -176,6 +177,7 @@ app.post("/webhooks/jira", async (req: any, res) => {
 
     const key = issue.key as string;
     const summary = issue.fields?.summary || "";
+    const issueType = issue?.fields?.issuetype?.name || "Unknown";
 
     const dedupId = `${key}:${from}->${to}`;
     if (await alreadyPosted(dedupId)) return console.log("Already posted", dedupId);
@@ -186,7 +188,7 @@ app.post("/webhooks/jira", async (req: any, res) => {
     // Post to X if enabled
     if (cfg.enableX) {
       const hashtags = cfg.tweetHashtags ? `\n\n${cfg.tweetHashtags}` : "";
-      const text = `🔁 ${key}: ${from} → ${to}\n📄 Description: ${summary}${hashtags}`.slice(0, 280);
+      const text = `🔁 ${key} [${issueType}]:\n📄 ${summary}${hashtags}\n${from} → ${to}`.slice(0, 280);
       tweetResult = await tweet(text);
     } else {
       console.log(`[X] X posting is disabled; skipping tweet for ${dedupId}`);
@@ -194,7 +196,7 @@ app.post("/webhooks/jira", async (req: any, res) => {
 
     // Send Discord embed if enabled
     if (cfg.enableDiscord) {
-      const embed = createTicketEmbed(key, summary, from, to);
+      const embed = createTicketEmbed(key, summary, from, to, issueType);
       discordResult = await sendDiscordEmbed(embed);
     } else {
       console.log(`[DISCORD] Discord posting is disabled; skipping notification for ${dedupId}`);

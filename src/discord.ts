@@ -91,7 +91,8 @@ export function createTicketEmbed(
   key: string,
   summary: string,
   from: string,
-  to: string
+  to: string,
+  issueType: string
 ): DiscordEmbed {
   // Color is 01e895
   let color = 0x01e895;
@@ -107,13 +108,18 @@ export function createTicketEmbed(
     color,
     fields: [
       {
-        name: "🔁 Status Change",
-        value: `${from} → ${to}`,
+        name: "📄 Description",
+        value: `${summary || "No description available"}`,
         inline: false
       },
       {
-        name: "📄 Description",
-        value: `${summary || "No description available"}`,
+        name: "🏷️ Type",
+        value: issueType,
+        inline: true
+      },
+      {
+        name: "🔁 Status Change",
+        value: `${from} → ${to}`,
         inline: false
       }
     ],
