@@ -136,9 +136,16 @@ app.post("/webhooks/jira", async (req: any, res) => {
     const { webhookEvent, issue, changelog } = req.body || {};
     if (!issue?.key) return;
 
-    // Filter out tickets with Security or Blocked labels
     const labels = issue?.fields?.labels || [];
     const labelNames = labels.map((l: string) => l.toLowerCase().trim());
+
+    const hasRequired = cfg.requiredLabels.some((x) => labelNames.includes(x));
+    if (!hasRequired) {
+      return console.log(
+        `Ignoring ticket ${issue.key} without required label(s). Labels: ${labels.join(", ") || "none"}. Required: ${cfg.requiredLabels.join(", ")}`
+      );
+    }
+
     const hasExcluded = cfg.excludedLabels.some((x) => labelNames.includes(x));
     if (hasExcluded) {
       return console.log(`Ignoring ticket ${issue.key} with excluded label(s): ${labels.join(", ")}`);

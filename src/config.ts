@@ -20,8 +20,12 @@ export const cfg = {
   brandName: process.env.BRAND_NAME || "",
   brandIconUrl: process.env.BRAND_ICON_URL || "",
   tweetHashtags: process.env.TWEET_HASHTAGS || "",
+  requiredLabels: (process.env.REQUIRED_LABELS || "public")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean),
   excludedLabels: (process.env.EXCLUDED_LABELS || "security,blocked,no-bot,no_bot")
-  .split(",")
-  .map(s => s.trim().toLowerCase())
-  .filter(Boolean),
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean),
 };
